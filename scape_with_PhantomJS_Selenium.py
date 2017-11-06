@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 import time
 from picture_operation import BeautifulPicture
 from multiprocessing import Manager, Pool, cpu_count
-from operate_web import consumer, scroll_down, click_btn
+from operate_web import scroll_down, click_btn
+from worker import consumer, wait_for_complete
 
 
 def get_pexels_pic():
@@ -12,9 +13,13 @@ def get_pexels_pic():
     headers= {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'}
     web_url = 'https://www.pexels.com/search/summer/'
     folder_path = 'd:\pexels_pic'
+    scroll_for_more = 5
+
+    print('########## pexel mission start! ##########')
+
     driver = webdriver.PhantomJS()
     driver.get(web_url)
-    scroll_down(driver, 5)
+    scroll_down(driver, scroll_for_more)
     all_img = BeautifulSoup(driver.page_source, 'lxml',).find_all('img', class_="photo-item__img")
     bp = BeautifulPicture(headers, folder_path)
 
@@ -33,12 +38,9 @@ def get_pexels_pic():
         input_q.put((img_uri, img_name))
         cnt += 1
 
-    while cnt > 0:
-        img_uri, ok = output_q.get()
-        if ok:
-            cnt -= 1
-        else:
-            input_q.put(img_uri)
+    ok, fault_cnt = wait_for_complete(input_q, output_q, cnt)
+
+    print('########## pexels mission completed:', ok, ' #### fault count:', fault_cnt)
     
     p.close()
     p.terminate()
@@ -51,14 +53,16 @@ def get_NASA_pic():
     web_url = 'https://www.nasa.gov/multimedia/imagegallery/iotd.html'
     folder_path = r'd:\NASA_pic'
     prefic_url = 'https://www.nasa.gov'
+    click_for_more = 5
 
+    print('########## NASA mission start! ##########')
     driver = webdriver.PhantomJS()
     driver.get(web_url)
 
     def NASA_find_btn(driver):
         return driver.find_element_by_id('trending')
 
-    click_btn(driver, 5, NASA_find_btn)
+    click_btn(driver, click_for_more, NASA_find_btn)
     all_div = BeautifulSoup(driver.page_source, 'lxml',).find_all('div', class_="image")
     bp = BeautifulPicture(headers, folder_path)
 
@@ -81,12 +85,9 @@ def get_NASA_pic():
         input_q.put((img_uri, img_name))
         cnt += 1
 
-    while cnt > 0:
-        img_uri, ok = output_q.get()
-        if ok:
-            cnt -= 1
-        else:
-            input_q.put(img_uri)
+    ok, fault_cnt = wait_for_complete(input_q, output_q, cnt)
+
+    print('########## NASA mission completed:', ok, ' #### fault count:', fault_cnt)
     
     p.close()
     p.terminate()
@@ -98,6 +99,8 @@ def get_163Album_pic():
     headers= {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'}
     web_url = 'http://music.163.com/#/artist/album?id=101988&limit=10000&offset=0'
     folder_path = r'd:\163_BeatlesAlbum_pic'
+
+    print('########## 163 Album mission start! ##########')
 
     driver = webdriver.PhantomJS()
     driver.get(web_url)
@@ -129,12 +132,9 @@ def get_163Album_pic():
         input_q.put((img_uri, img_name))
         cnt += 1
 
-    while cnt > 0:
-        img_uri, ok = output_q.get()
-        if ok:
-            cnt -= 1
-        else:
-            input_q.put(img_uri)
+    ok, fault_cnt = wait_for_complete(input_q, output_q, cnt)
+
+    print('########## 163 Album mission completed:', ok, ' #### fault count:', fault_cnt)
     
     p.close()
     p.terminate()
@@ -143,7 +143,7 @@ def get_163Album_pic():
 
 if __name__ == '__main__':
     start = time.time()
-    #get_NASA_pic() #https://www.nasa.gov/multimedia/imagegallery/iotd.html
+    get_NASA_pic() #https://www.nasa.gov/multimedia/imagegallery/iotd.html
     get_pexels_pic() #https://www.pexels.com/search/summer/
-    #get_163Album_pic()
+    get_163Album_pic() #http://music.163.com/#/artist/album?id=101988&limit=10000&offset=0
     print(time.time()-start)

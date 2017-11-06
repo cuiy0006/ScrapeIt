@@ -11,6 +11,8 @@ class BeautifulPicture():
         ''' create directory if not exists
         Args:
             path (string): directory path
+        Retruns:
+            None
         '''
         path = path.strip()
         isExist = os.path.exists(path)
@@ -26,6 +28,9 @@ class BeautifulPicture():
         Args:
             url (string): image's url
             name (string): image's name
+
+        Returns:
+            bool: exception not occurs True, otherwise False
         '''
         try:
             #open mode: b->binary mode, w->overwrite, (default)r->read, a->append
