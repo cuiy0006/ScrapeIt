@@ -1,10 +1,11 @@
-import requests, os
+import requests, os, time
 
 class BeautifulPicture():
     def __init__(self, headers, folder_path):
         self.headers = headers
         self.folder_path = folder_path
         self.mkdir(folder_path)
+        self._session = None
 
     def mkdir(self, path):
         ''' create directory if not exists
@@ -27,13 +28,17 @@ class BeautifulPicture():
             name (string): image's name
         '''
         try:
-            img = requests.get(url, headers=self.headers)
             #open mode: b->binary mode, w->overwrite, (default)r->read, a->append
+            #begin = time.time()
+            img = requests.get(url, self.headers)
+            #x1 = time.time()
+
             with open(self.folder_path + '\\' + name, 'wb') as f: 
                 f.write(img.content)
+                #x2 = time.time()
                 print(name, 'saved successfully!')
             return True
         except:
+            print('*******FAIL******', name, '  ', url)
             return False
     
-

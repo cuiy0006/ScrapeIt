@@ -1,51 +1,10 @@
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 import time
 from picture_operation import BeautifulPicture
 from multiprocessing import Manager, Pool, cpu_count
+from operate_web import consumer, scroll_down, click_btn
 
-def scroll_down(driver, times):
-    ''' simulate scrolling down the page
-    Args:
-        driver (webdriver): selenium's webdriver
-        times (int): times to execute the action
-
-    Returns:
-        None
-    '''
-    i = 1
-    while i <= times:
-        print('scroll down', i, 'times')
-        curr_len = len(driver.page_source)
-        while True:
-            driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
-            time.sleep(1)
-            if len(driver.page_source) > curr_len:
-                break
-        i += 1
-
-def click_btn(driver, times, find_btn):
-    ''' simulate clicking button
-    Args:
-        driver (webdriver): selenium's webdriver
-        times (int): times to execute the action
-        find_btn (function): find the button (driver) -> button
-
-    Returns:
-        None
-    '''
-    i = 1
-    while i <= times:
-        print('click button', i, 'times')
-        curr_len = len(driver.page_source)
-        while True:
-            btn = find_btn(driver)
-            btn.click()
-            time.sleep(1)
-            if len(driver.page_source) > curr_len:
-                break
-        i += 1
 
 def get_pexels_pic():
     ''' get pictures from https://www.pexels.com/search/summer/
@@ -69,8 +28,8 @@ def get_pexels_pic():
 
     cnt = 0
     for img in all_img:
-        img_uri = img['src']
-        img_name = img_uri.split('/')[-1].split('?')[0]
+        img_uri = img['src'].split('?')[0]
+        img_name = img_uri.split('/')[-1]
         input_q.put((img_uri, img_name))
         cnt += 1
 
@@ -83,6 +42,7 @@ def get_pexels_pic():
     
     p.close()
     p.terminate()
+    driver.quit()
 
 def get_NASA_pic():
     ''' get pictures from https://www.nasa.gov/multimedia/imagegallery/iotd.html
@@ -113,7 +73,10 @@ def get_NASA_pic():
     cnt = 0
     for div in all_div:
         img = div.find('img')
-        img_uri = prefic_url + img['src']
+        img_src = img['src']
+        img_src_lst = img_src.split('/')
+        img_src_lst[5] = 'full_width_feature'
+        img_uri = prefic_url + '/' + '/'.join(img_src_lst)
         img_name = img_uri.split('/')[-1]
         input_q.put((img_uri, img_name))
         cnt += 1
@@ -127,25 +90,60 @@ def get_NASA_pic():
     
     p.close()
     p.terminate()
-
+    driver.quit()
     
-def consumer(input_q, output_q, bp):
-    ''' save image
-    Args:
-        input_q (Queue): to-do queue
-        output_q (Queue): job-result queue
-        bp (BeautifulPicture): object to handle image save
-
-    Returns:
-        None
+def get_163Album_pic():
+    ''' get pictures from http://music.163.com/#/artist/album?id=101988&limit=10000&offset=0
     '''
-    while True:
-        img_uri, img_name = input_q.get()
-        ok = bp.save_img(img_uri, img_name)
-        output_q.put((img_uri, ok))
+    headers= {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'}
+    web_url = 'http://music.163.com/#/artist/album?id=101988&limit=10000&offset=0'
+    folder_path = r'd:\163_BeatlesAlbum_pic'
+
+    driver = webdriver.PhantomJS()
+    driver.get(web_url)
+
+    driver.switch_to.frame('g_iframe')
+    m_song_module = driver.find_element_by_id('m-song-module')
+    lis = m_song_module.find_elements_by_tag_name('li')
+
+    all_li = BeautifulSoup(driver.page_source, 'lxml').find('ul', {'id':'m-song-module'}).find_all('li')
+    bp = BeautifulPicture(headers, folder_path)
+
+    p = Pool(cpu_count())
+    m = Manager()
+    input_q = m.Queue()
+    output_q = m.Queue()
+
+    for i in range(cpu_count()):
+        p.apply_async(consumer, (input_q, output_q, bp))
+
+    cnt = 0
+    for li in all_li:
+        img = li.find('img')
+        img_uri = img['src'].split('?')[0]
+        album_date = li.find('span', {'class': 's-fc3'}).get_text()
+        img_name = album_date + '-' + li.find('p')['title'].replace('/', ' ')
+        if len(img_name) > 20:
+            img_name = img_name[:20]
+        img_name += '.jpeg'
+        input_q.put((img_uri, img_name))
+        cnt += 1
+
+    while cnt > 0:
+        img_uri, ok = output_q.get()
+        if ok:
+            cnt -= 1
+        else:
+            input_q.put(img_uri)
+    
+    p.close()
+    p.terminate()
+    driver.quit()
+
 
 if __name__ == '__main__':
     start = time.time()
-    get_NASA_pic() #https://www.nasa.gov/multimedia/imagegallery/iotd.html
+    #get_NASA_pic() #https://www.nasa.gov/multimedia/imagegallery/iotd.html
     get_pexels_pic() #https://www.pexels.com/search/summer/
+    #get_163Album_pic()
     print(time.time()-start)
