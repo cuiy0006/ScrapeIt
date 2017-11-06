@@ -1,7 +1,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import time
-from picture_operation import BeautifulPicture
+from picture_operate import BeautifulPicture
 from multiprocessing import Manager, Pool, cpu_count
 from operate_web import scroll_down, click_btn
 from worker import consumer, wait_for_complete
