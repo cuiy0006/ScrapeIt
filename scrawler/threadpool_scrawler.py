@@ -12,7 +12,7 @@ seen_urls = set(['/'])
 lock = Lock()
 
 DEBUG = True
-TARGET = 'localhost'
+TARGET = 'theuselessweb.com'
 
 class Fetcher(Thread):
     def __init__(self, tasks):
@@ -26,7 +26,7 @@ class Fetcher(Thread):
             url = self.tasks.get()
             print(url)
             sock = socket.socket()
-            sock.connect(('localhost', 5000))
+            sock.connect((TARGET, 80))
             get = 'GET {0} HTTP/1.0\r\nHost: {1}\r\n\r\n'.format(url, TARGET)
             sock.send(get.encode('ascii'))
             response = b''
